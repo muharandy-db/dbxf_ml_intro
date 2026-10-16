@@ -24,7 +24,7 @@ The flow for this module is simple: **Git folder (CSV) → Volume (raw file) →
 
 ## ✅ Before you start
 
-1. In Databricks, go to **Workspace → Users → *your name* → Create → Git folder** and paste this repo's URL. The repo lands at `/Workspace/Users/<you>/dbx_ml_intro`.
+1. In Databricks, go to **Workspace → Users → *your name* → Create → Git folder** and paste this repo's URL, `https://github.com/muharandy-db/dbxf_ml_intro`. The repo lands at `/Workspace/Users/<you>/dbxf_ml_intro`.
 2. Create a new notebook (**New → Notebook**) and name it `00_setup`.
 3. In the compute dropdown at the top right, select **Serverless**.
 4. Open the **Environment** panel (the 🧩 icon on the right side of the notebook) and set **Environment version** to **4** or later. Spark ML (Module 04) needs it on serverless. Do this for **every notebook you create today**.
@@ -60,7 +60,7 @@ print(f"You are working in {CATALOG}.{SCHEMA}")
 ```python
 import os, shutil
 
-DATA_DIR = f"/Workspace/Users/{user}/dbx_ml_intro/data"   # 👈 the data/ folder of your Git folder
+DATA_DIR = f"/Workspace/Users/{user}/dbxf_ml_intro/data"   # 👈 the data/ folder of your Git folder
 spark.sql("CREATE VOLUME IF NOT EXISTS raw")
 RAW = f"/Volumes/{CATALOG}/{SCHEMA}/raw"
 
