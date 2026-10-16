@@ -76,7 +76,7 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-import os, re, mlflow
+import logging, os, re, mlflow
 from databricks.sdk import WorkspaceClient
 from mlflow.entities.trace_location import UnityCatalog
 CATALOG = "ml_workshop"
@@ -87,6 +87,8 @@ SCHEMA = re.sub(r"[^a-z0-9_]", "_", user.split("@")[0].lower())
 warehouses = sorted(WorkspaceClient().warehouses.list(), key=lambda wh: not wh.enable_serverless_compute)
 os.environ["MLFLOW_TRACING_SQL_WAREHOUSE_ID"] = warehouses[0].id   # 👈 or paste a warehouse ID you can use
 
+# Some workspaces (e.g. Free Edition) don't expose Git details to MLflow; hide that one harmless warning
+logging.getLogger("mlflow.tracking.context.registry").addFilter(lambda r: "extraContext" not in r.getMessage())
 mlflow.set_experiment(
     f"/Users/{user}/churn_workshop",
     trace_location=UnityCatalog(catalog_name=CATALOG, schema_name=SCHEMA, table_prefix="churn_workshop"),

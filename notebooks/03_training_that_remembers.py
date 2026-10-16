@@ -60,7 +60,7 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-import re, mlflow
+import logging, re, mlflow
 from mlflow.entities.trace_location import UnityCatalog
 CATALOG = "ml_workshop"
 user = spark.sql("SELECT current_user()").first()[0]
@@ -68,6 +68,8 @@ SCHEMA = re.sub(r"[^a-z0-9_]", "_", user.split("@")[0].lower())
 spark.sql(f"USE CATALOG {CATALOG}")
 spark.sql(f"USE SCHEMA {SCHEMA}")
 
+# Some workspaces (e.g. Free Edition) don't expose Git details to MLflow; hide that one harmless warning
+logging.getLogger("mlflow.tracking.context.registry").addFilter(lambda r: "extraContext" not in r.getMessage())
 mlflow.set_registry_uri("databricks-uc")                 # models will be registered in Unity Catalog
 mlflow.set_experiment(
     f"/Users/{user}/churn_workshop",                      # one experiment for the whole day
@@ -81,6 +83,7 @@ MODEL_NAME = f"{CATALOG}.{SCHEMA}.churn_model"
 # MAGIC **What to point out**
 # MAGIC - `set_experiment` creates the experiment if it doesn't exist. Every module from here on logs into the **same** experiment, so the whole day's work sits in one place. The first run prints *"Experiment ... does not exist. Creating a new experiment"*, which is expected.
 # MAGIC - `trace_location` stores the experiment's **traces** in Unity Catalog tables in your schema (`churn_workshop_otel_spans` and friends), not in the experiment's built-in store. That means no 100,000-trace limit, UC permissions, and traces you can query with SQL. We only create traces in Module 10, but the location is fixed when the experiment is created, so we set it here. Later modules call `set_experiment` with just the name and MLflow finds the location on its own.
+# MAGIC - The `addFilter` line hides one harmless warning, *"Encountered unexpected error during resolving tags: getContext().extraContext()..."*. MLflow tries to tag each run with Git details of the Git folder, and some workspaces, such as Free Edition, don't provide them. Runs are logged normally, just without Git tags. Every module's config cell has this line.
 # MAGIC - `databricks-uc` means registered models live in **Unity Catalog** next to the tables, with the same permissions model (Module 07).
 # MAGIC
 # MAGIC ### Cell 2 — Load the training snapshot
@@ -120,7 +123,7 @@ print(f"train {len(X_train):,} | val {len(X_val):,} | test {len(X_test):,} | tab
 # MAGIC - The data is split three ways: **train** to fit, **validation** to compare and tune, and **test** touched once at the very end (Module 07). Tuning on the test set is leakage in disguise.
 # MAGIC - `orderBy("customer_id")` makes the split reproducible. Spark doesn't guarantee row order, so without it, the "same" split could differ between runs.
 # MAGIC - The dataset object records **which table and which Delta version** we trained on. That links directly back to Module 02. We build it from the pandas data we actually train on and point its source at the Delta table. (`mlflow.data.from_spark` does the same from a Spark DataFrame, but on serverless its row-count profile needs RDDs, which aren't available, so it prints an `RDD_NOT_SUPPORTED` warning.)
-# MAGIC - `astype("float64")` turns every feature into a float. Python integers can't hold missing values, so a model whose signature says *integer* rejects a scoring batch where that column has a gap. MLflow warns about this when it infers the signature; floats avoid the problem. In Cell 4 you'll still see the hint once per model: that one is about the **output**, the predicted 0/1 label, which is never missing, so you can ignore it.
+# MAGIC - `astype("float64")` turns every feature into a float. Python integers can't hold missing values, so a model whose signature says *integer* rejects a scoring batch where that column has a gap. MLflow warns about this when it infers the signature; floats avoid the problem.
 # MAGIC - `pd.get_dummies` here is still a manual step. Remember this when you get to Module 04.
 # MAGIC
 # MAGIC ### Cell 3 — Autolog + a reusable training helper
@@ -129,6 +132,8 @@ print(f"train {len(X_train):,} | val {len(X_val):,} | test {len(X_test):,} | tab
 
 from sklearn.metrics import roc_auc_score, recall_score, precision_score, ConfusionMatrixDisplay
 
+import warnings
+warnings.filterwarnings("ignore", message="Hint: Inferred schema contains integer")  # only the 0/1 label output is int
 mlflow.sklearn.autolog(log_post_training_metrics=False)
 THRESHOLD = 0.3     # the business decision from Module 01
 
@@ -154,6 +159,7 @@ def train_and_log(model, run_name):
 # MAGIC %md
 # MAGIC **What to point out**
 # MAGIC - `mlflow.sklearn.autolog()` is the one line that makes tracking the default. Every `fit` now logs its hyperparameters, training metrics, and the fitted model.
+# MAGIC - Autolog also infers a **signature** from the outputs, and the predicted 0/1 label is an integer, so MLflow would still show its integer hint once per model. A label is never missing, so the `warnings.filterwarnings` line hides that one message. Don't copy it blindly: on *input* columns, the hint is worth acting on, as Cell 2 does.
 # MAGIC - On top of that we log what autolog can't know: the **business threshold**, recall at that threshold, and a confusion-matrix image as an **artifact**.
 # MAGIC - `log_input` attaches the dataset (table plus version) to the run, which gives you **data lineage per run**.
 # MAGIC

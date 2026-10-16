@@ -65,12 +65,14 @@ dbutils.library.restartPython()
 ### Cell 1 — Config
 
 ```python
-import re, mlflow
+import logging, re, mlflow
 CATALOG = "ml_workshop"
 user = spark.sql("SELECT current_user()").first()[0]
 SCHEMA = re.sub(r"[^a-z0-9_]", "_", user.split("@")[0].lower())
 spark.sql(f"USE CATALOG {CATALOG}")
 spark.sql(f"USE SCHEMA {SCHEMA}")
+# Some workspaces (e.g. Free Edition) don't expose Git details to MLflow; hide that one harmless warning
+logging.getLogger("mlflow.tracking.context.registry").addFilter(lambda r: "extraContext" not in r.getMessage())
 mlflow.set_registry_uri("databricks-uc")
 mlflow.set_experiment(f"/Users/{user}/churn_workshop")
 MODEL_NAME = f"{CATALOG}.{SCHEMA}.churn_model"
