@@ -9,7 +9,7 @@ One page, one row per habit worth replacing.
 | `MemoryError` → sample 10% | Spark DataFrames (lazy, distributed) | `spark.table("t").groupBy("k").agg(...)` | [02](../modules/02-data-in-the-lakehouse.md) |
 | Features that peek into the future | Point-in-time feature logic | `.filter(F.col("days_before").between(1, 90))` | [02](../modules/02-data-in-the-lakehouse.md) |
 | Results in `print()` / a spreadsheet | MLflow Tracking + autolog | `mlflow.sklearn.autolog()` | [03](../modules/03-training-that-remembers.md) |
-| "Which data trained this?" | Dataset logged per run | `mlflow.log_input(mlflow.data.from_spark(df, table_name=...))` | [03](../modules/03-training-that-remembers.md) |
+| "Which data trained this?" | Dataset logged per run | `mlflow.log_input(mlflow.data.from_pandas(pdf, source=DeltaDatasetSource(...)))` | [03](../modules/03-training-that-remembers.md) |
 | Nested `for` loops for tuning | Optuna + nested runs | `mlflow.start_run(nested=True)` | [03](../modules/03-training-that-remembers.md) |
 | Preprocessing re-implemented at scoring | Pipeline = recipe + model | `Pipeline([("preprocess", ColumnTransformer(...)), ("model", ...)])` | [04](../modules/04-pipelines-not-scripts.md) |
 | Data too big for one machine | Spark ML pipeline | `SparkPipeline(stages=[Imputer, StringIndexer, ..., VectorAssembler, RF])` | [04](../modules/04-pipelines-not-scripts.md) |

@@ -79,6 +79,7 @@ MODEL_NAME = f"{CATALOG}.{SCHEMA}.churn_model"
 ```python
 import pandas as pd
 from sklearn.model_selection import train_test_split
+from mlflow.data.delta_dataset_source import DeltaDatasetSource
 
 NUMERIC = ["age", "tenure_months", "num_products", "balance", "credit_score",
            "has_credit_card", "is_active_member", "estimated_salary",
@@ -90,14 +91,15 @@ LABEL = "churned"
 train_sdf = spark.table("customer_features").filter("snapshot_date = '2026-06-30'")
 pdf = train_sdf.orderBy("customer_id").toPandas()
 
-X = pd.get_dummies(pdf[NUMERIC + CATEGORICAL], columns=CATEGORICAL, dtype=int)
+X = pd.get_dummies(pdf[NUMERIC + CATEGORICAL], columns=CATEGORICAL).astype("float64")
 y = pdf[LABEL]
 X_train, X_tmp, y_train, y_tmp = train_test_split(X, y, test_size=0.4, stratify=y, random_state=42)
 X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, test_size=0.5, stratify=y_tmp, random_state=42)
 
 table_version = spark.sql("DESCRIBE HISTORY customer_features LIMIT 1").first()["version"]
-dataset = mlflow.data.from_spark(train_sdf, table_name=f"{CATALOG}.{SCHEMA}.customer_features",
-                                 version=str(table_version))
+dataset = mlflow.data.from_pandas(pdf, targets=LABEL, name="customer_features",
+                                  source=DeltaDatasetSource(delta_table_name=f"{CATALOG}.{SCHEMA}.customer_features",
+                                                            delta_table_version=table_version))
 print(f"train {len(X_train):,} | val {len(X_val):,} | test {len(X_test):,} | table version {table_version}")
 ```
 
@@ -105,7 +107,8 @@ print(f"train {len(X_train):,} | val {len(X_val):,} | test {len(X_test):,} | tab
 - Spark filters the table and `toPandas()` brings the 10k rows to the driver. Small data, so **scikit-learn is the right tool**; Module 04 discusses when it isn't.
 - The data is split three ways: **train** to fit, **validation** to compare and tune, and **test** touched once at the very end (Module 07). Tuning on the test set is leakage in disguise.
 - `orderBy("customer_id")` makes the split reproducible. Spark doesn't guarantee row order, so without it, the "same" split could differ between runs.
-- `mlflow.data.from_spark` captures **which table and which Delta version** we trained on. That links directly back to Module 02.
+- The dataset object records **which table and which Delta version** we trained on. That links directly back to Module 02. We build it from the pandas data we actually train on and point its source at the Delta table. (`mlflow.data.from_spark` does the same from a Spark DataFrame, but on serverless its row-count profile needs RDDs, which aren't available, so it prints an `RDD_NOT_SUPPORTED` warning.)
+- `astype("float64")` turns every feature into a float. Python integers can't hold missing values, so a model whose signature says *integer* rejects a scoring batch where that column has a gap. MLflow warns about this when it infers the signature; floats avoid the problem. In Cell 4 you'll still see the hint once per model: that one is about the **output**, the predicted 0/1 label, which is never missing, so you can ignore it.
 - `pd.get_dummies` here is still a manual step. Remember this when you get to Module 04.
 
 ### Cell 3 — Autolog + a reusable training helper
