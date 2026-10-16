@@ -67,6 +67,7 @@ MODEL_NAME = f"{CATALOG}.{SCHEMA}.churn_model"
 
 **What to point out**
 - `set_experiment` creates the experiment if it doesn't exist. Every module from here on logs into the **same** experiment, so the whole day's work sits in one place.
+- The first run prints two messages, and both are expected. *"Experiment ... does not exist. Creating a new experiment"* is `set_experiment` doing its job. The note about storing traces in Unity Catalog is about **MLflow Tracing** for GenAI apps (Module 10). Today we log runs and models, not traces, so you can ignore it.
 - `databricks-uc` means registered models live in **Unity Catalog** next to the tables, with the same permissions model (Module 07).
 
 ### Cell 2 — Load the training snapshot
