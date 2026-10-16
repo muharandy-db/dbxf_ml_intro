@@ -130,9 +130,9 @@ print(f"train {len(X_train):,} | val {len(X_val):,} | test {len(X_test):,} | tab
 
 # COMMAND ----------
 
+import matplotlib.pyplot as plt, warnings
 from sklearn.metrics import roc_auc_score, recall_score, precision_score, ConfusionMatrixDisplay
 
-import warnings
 warnings.filterwarnings("ignore", message="Hint: Inferred schema contains integer")  # only the 0/1 label output is int
 mlflow.sklearn.autolog(log_post_training_metrics=False)
 THRESHOLD = 0.3     # the business decision from Module 01
@@ -150,7 +150,8 @@ def train_and_log(model, run_name):
                             "val_recall": recall_score(y_val, pred),
                             "val_precision": precision_score(y_val, pred)})
         fig = ConfusionMatrixDisplay.from_predictions(y_val, pred).figure_
-        mlflow.log_figure(fig, "confusion_matrix.png")
+        mlflow.log_figure(fig, "val_confusion_matrix.png")
+        plt.close(fig)                                           # logged; don't also keep it open in memory
         print(f"{run_name}: val_auc={roc_auc_score(y_val, proba):.3f}")
         return run.info.run_id
 
@@ -160,7 +161,8 @@ def train_and_log(model, run_name):
 # MAGIC **What to point out**
 # MAGIC - `mlflow.sklearn.autolog()` is the one line that makes tracking the default. Every `fit` now logs its hyperparameters, training metrics, and the fitted model.
 # MAGIC - Autolog also infers a **signature** from the outputs, and the predicted 0/1 label is an integer, so MLflow would still show its integer hint once per model. A label is never missing, so the `warnings.filterwarnings` line hides that one message. Don't copy it blindly: on *input* columns, the hint is worth acting on, as Cell 2 does.
-# MAGIC - On top of that we log what autolog can't know: the **business threshold**, recall at that threshold, and a confusion-matrix image as an **artifact**.
+# MAGIC - On top of that we log what autolog can't know: the **business threshold**, recall at that threshold, and a confusion-matrix image as an **artifact**. `log_figure` uploads a figure straight from memory; `log_artifact` is for files already on disk. `plt.close` frees the figure once it's logged, which matters when a loop trains many models.
+# MAGIC - Open a run's **Artifacts** tab and you'll find **two** confusion matrices. `training_confusion_matrix.png` (with the ROC and precision-recall curves) comes from autolog: it scores the **training** data at sklearn's default 0.5 threshold. `val_confusion_matrix.png` is ours: **validation** data at our 0.3 threshold. The training one looks better because the model has already seen those rows. That gap is a quick check for **overfitting**, and it's why we compare models only on validation numbers.
 # MAGIC - `log_input` attaches the dataset (table plus version) to the run, which gives you **data lineage per run**.
 # MAGIC
 # MAGIC ### Cell 4 — Two candidate models
