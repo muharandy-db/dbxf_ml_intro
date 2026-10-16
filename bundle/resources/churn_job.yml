@@ -1,0 +1,46 @@
+resources:
+  jobs:
+    churn_training:
+      name: churn-training-${bundle.target}
+      description: Retrain the churn model, promote it if it beats the champion, then score the latest snapshot.
+
+      tasks:
+        - task_key: train_and_evaluate
+          environment_key: ml
+          spark_python_task:
+            python_file: ../src/train.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --model-name=${var.model_name}
+              - --experiment=/Users/${workspace.current_user.userName}/churn_workshop_${bundle.target}
+
+        - task_key: batch_score
+          depends_on:
+            - task_key: train_and_evaluate
+          environment_key: ml
+          spark_python_task:
+            python_file: ../src/batch_score.py
+            parameters:
+              - --catalog=${var.catalog}
+              - --schema=${var.schema}
+              - --model-name=${var.model_name}
+
+      # Serverless: declare the Python dependencies once, for every task.
+      environments:
+        - environment_key: ml
+          spec:
+            environment_version: "4"
+            dependencies:
+              - mlflow>=3.1
+              - scikit-learn==1.6.1   # same version as training: pickled models are version-sensitive
+
+      # Weekly safety-net run (paused automatically in dev). The primary trigger is
+      # drift: Module 08 calls `jobs.run_now` on this job when drift crosses a threshold.
+      schedule:
+        quartz_cron_expression: "0 0 6 ? * MON"
+        timezone_id: Asia/Jakarta
+
+      tags:
+        project: churn
+        managed_by: asset-bundle

@@ -1,0 +1,45 @@
+# Databricks Asset Bundle for the churn model.
+# One definition of the job, deployed to three environments (targets).
+bundle:
+  name: churn_mlops
+
+include:
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog that holds the tables and the model
+    default: ml_workshop
+  schema:
+    description: Schema inside the catalog
+  model_name:
+    description: Registered model name (inside catalog.schema)
+    default: churn_model
+
+targets:
+  # Your personal sandbox. `mode: development` prefixes every resource name with
+  # "[dev <your name>]" and pauses schedules, so attendees never collide.
+  dev:
+    mode: development
+    default: true
+    variables:
+      schema: ${workspace.current_user.short_name}
+
+  # Shared pre-production. Same code, different catalog.
+  staging:
+    variables:
+      catalog: ml_workshop_staging
+      schema: churn
+
+  # Production. Usually deployed by CI/CD as a service principal, never by hand.
+  prod:
+    mode: production
+    variables:
+      catalog: ml_workshop_prod
+      schema: churn
+    workspace:
+      # One copy, owned by whoever deploys it: in CI/CD that's the service principal.
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+      # host: https://<your-prod-workspace>.cloud.databricks.com
+    # run_as:
+    #   service_principal_name: <service-principal-application-id>
