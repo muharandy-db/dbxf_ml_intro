@@ -161,7 +161,7 @@ with mlflow.start_run(run_name="sklearn_pipeline") as run:
     val_auc = roc_auc_score(y_val, pipe.predict_proba(X_val)[:, 1])
     mlflow.log_metric("val_auc", val_auc)
     mlflow.sklearn.log_model(
-        pipe, name="model",
+        pipe, name="sklearn_pipeline",
         input_example=X_train.head(3),
         signature=infer_signature(X_train, pipe.predict(X_train)))
 

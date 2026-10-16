@@ -86,7 +86,7 @@ X_val, X_test, y_val, y_test = train_test_split(X_tmp, y_tmp, test_size=0.5, str
 ```python
 candidate = mlflow.search_runs(filter_string="tags.candidate = 'true'",
                                order_by=["start_time DESC"], max_results=1).iloc[0]
-v1 = mlflow.register_model(f"runs:/{candidate.run_id}/model", MODEL_NAME)
+v1 = mlflow.register_model(f"runs:/{candidate.run_id}/sklearn_pipeline", MODEL_NAME)
 
 client.update_registered_model(MODEL_NAME, description=
     "Predicts probability that a retail customer churns in the next quarter. Owner: retention analytics.")
@@ -127,7 +127,7 @@ challenger = Pipeline([
 with mlflow.start_run(run_name="challenger_tuned_pipeline"):
     mlflow.set_tag("module", "07")
     mlflow.log_params(best)
-    info = mlflow.sklearn.log_model(challenger, name="model", input_example=X_train.head(3),
+    info = mlflow.sklearn.log_model(challenger, name="tuned_pipeline", input_example=X_train.head(3),
                                     signature=infer_signature(X_train, challenger.predict(X_train)),
                                     registered_model_name=MODEL_NAME)
 v2 = info.registered_model_version

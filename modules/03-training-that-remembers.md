@@ -120,15 +120,19 @@ print(f"train {len(X_train):,} | val {len(X_val):,} | test {len(X_test):,} | tab
 import matplotlib.pyplot as plt, warnings
 from sklearn.metrics import roc_auc_score, recall_score, precision_score, ConfusionMatrixDisplay
 
+from mlflow.models import infer_signature
+
 warnings.filterwarnings("ignore", message="Hint: Inferred schema contains integer")  # only the 0/1 label output is int
-mlflow.sklearn.autolog(log_post_training_metrics=False)
+mlflow.sklearn.autolog(log_post_training_metrics=False, log_models=False)   # we log the model ourselves, by name
 THRESHOLD = 0.3     # the business decision from Module 01
 
 def train_and_log(model, run_name):
     with mlflow.start_run(run_name=run_name) as run:
         mlflow.set_tag("module", "03")
         mlflow.log_input(dataset, context="training")
-        model.fit(X_train, y_train)                              # autolog records params + model
+        model.fit(X_train, y_train)                              # autolog records params + training metrics
+        mlflow.sklearn.log_model(model, name=run_name,           # the name shown on the Models tab
+                                 signature=infer_signature(X_train, model.predict(X_train)))
 
         proba = model.predict_proba(X_val)[:, 1]
         pred = (proba >= THRESHOLD).astype(int)
@@ -144,8 +148,9 @@ def train_and_log(model, run_name):
 ```
 
 **What to point out**
-- `mlflow.sklearn.autolog()` is the one line that makes tracking the default. Every `fit` now logs its hyperparameters, training metrics, and the fitted model.
-- Autolog also infers a **signature** from the outputs, and the predicted 0/1 label is an integer, so MLflow would still show its integer hint once per model. A label is never missing, so the `warnings.filterwarnings` line hides that one message. Don't copy it blindly: on *input* columns, the hint is worth acting on, as Cell 2 does.
+- `mlflow.sklearn.autolog()` is the one line that makes tracking the default. Every `fit` now logs its hyperparameters and training metrics.
+- Autolog can log the fitted model too, but it always names it `model`, so every row on the experiment's **Models** tab would look the same. We turn that part off (`log_models=False`) and call `log_model` with `name=run_name`, so models show up as `random_forest`, `hist_gbm`, and so on. The **signature** records the input columns and output type the model expects (more in Module 04).
+- The signature's output, the predicted 0/1 label, is an integer, so MLflow would still show its integer hint once per model. A label is never missing, so the `warnings.filterwarnings` line hides that one message. Don't copy it blindly: on *input* columns, the hint is worth acting on, as Cell 2 does.
 - On top of that we log what autolog can't know: the **business threshold**, recall at that threshold, and a confusion-matrix image as an **artifact**. `log_figure` uploads a figure straight from memory; `log_artifact` is for files already on disk. `plt.close` frees the figure once it's logged, which matters when a loop trains many models.
 - Open a run's **Artifacts** tab and you'll find **two** confusion matrices. `training_confusion_matrix.png` (with the ROC and precision-recall curves) comes from autolog: it scores the **training** data at sklearn's default 0.5 threshold. `val_confusion_matrix.png` is ours: **validation** data at our 0.3 threshold. The training one looks better because the model has already seen those rows. That gap is a quick check for **overfitting**, and it's why we compare models only on validation numbers.
 - `log_input` attaches the dataset (table plus version) to the run, which gives you **data lineage per run**.
@@ -225,7 +230,7 @@ Train a third candidate, a random forest with `n_estimators=400, max_depth=12`, 
 <summary>Solution</summary>
 
 ```python
-mlflow.sklearn.autolog(log_post_training_metrics=False)   # re-enable after the tuning cell
+mlflow.sklearn.autolog(log_post_training_metrics=False, log_models=False)   # re-enable after the tuning cell
 train_and_log(RandomForestClassifier(n_estimators=400, max_depth=12, random_state=42), "random_forest_big")
 ```
 

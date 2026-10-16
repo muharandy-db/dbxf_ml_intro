@@ -64,7 +64,7 @@ def main():
         mlflow.set_tag("trigger", "job")
         mlflow.log_metric("test_auc", new_auc)
         info = mlflow.sklearn.log_model(
-            pipe, name="model", input_example=X_train.head(3),
+            pipe, name="churn_pipeline", input_example=X_train.head(3),
             signature=infer_signature(X_train, pipe.predict(X_train)),
             registered_model_name=model_name)
     new_version = info.registered_model_version

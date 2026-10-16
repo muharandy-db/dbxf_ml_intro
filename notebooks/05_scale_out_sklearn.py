@@ -152,7 +152,7 @@ with mlflow.start_run(run_name="per_region_models"):
         with mlflow.start_run(run_name=f"region_{row.branch_region}", nested=True):
             mlflow.log_param("branch_region", row.branch_region)
             mlflow.log_metrics({"val_auc": row.val_auc, "n_customers": row.n_customers})
-            mlflow.sklearn.log_model(pickle.loads(row.model_bytes), name="model")
+            mlflow.sklearn.log_model(pickle.loads(row.model_bytes), name=f"region_{row.branch_region}")
 
 # COMMAND ----------
 
@@ -169,7 +169,7 @@ from pyspark.sql import functions as F
 
 candidate = mlflow.search_runs(filter_string="tags.candidate = 'true'",
                                order_by=["start_time DESC"], max_results=1).iloc[0]
-model_uri = f"runs:/{candidate.run_id}/model"     # the sklearn pipeline from Module 04
+model_uri = f"runs:/{candidate.run_id}/sklearn_pipeline"     # the sklearn pipeline from Module 04
 
 predict_udf = mlflow.pyfunc.spark_udf(spark, model_uri, result_type="double")
 

@@ -170,7 +170,7 @@ pipe = Pipeline([
 with mlflow.start_run(run_name="feature_store_model"):
     mlflow.set_tag("module", "06")
     mlflow.log_metric("val_auc", roc_auc_score(y_val, pipe.predict_proba(X_val)[:, 1]))
-    fe.log_model(model=pipe, artifact_path="model", flavor=mlflow.sklearn,
+    fe.log_model(model=pipe, artifact_path="feature_store_pipeline", flavor=mlflow.sklearn,
                  training_set=training_set, registered_model_name=FS_MODEL_NAME,
                  infer_input_example=True)
 ```
