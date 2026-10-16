@@ -49,7 +49,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -q "mlflow>=3.1" scikit-learn==1.6.1 databricks-feature-engineering
+# MAGIC %pip install -q "mlflow[databricks]>=3.14" scikit-learn==1.6.1 databricks-feature-engineering
 
 # COMMAND ----------
 

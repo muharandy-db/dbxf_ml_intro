@@ -68,7 +68,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -q "mlflow>=3.1"
+# MAGIC %pip install -q "mlflow[databricks]>=3.14"
 
 # COMMAND ----------
 
@@ -76,11 +76,21 @@ dbutils.library.restartPython()
 
 # COMMAND ----------
 
-import re, mlflow
+import os, re, mlflow
+from databricks.sdk import WorkspaceClient
+from mlflow.entities.trace_location import UnityCatalog
 CATALOG = "ml_workshop"
 user = spark.sql("SELECT current_user()").first()[0]
 SCHEMA = re.sub(r"[^a-z0-9_]", "_", user.split("@")[0].lower())
-mlflow.set_experiment(f"/Users/{user}/churn_workshop")
+
+# Traces live in UC tables, so reading them back needs a SQL warehouse. Pick one, serverless first.
+warehouses = sorted(WorkspaceClient().warehouses.list(), key=lambda wh: not wh.enable_serverless_compute)
+os.environ["MLFLOW_TRACING_SQL_WAREHOUSE_ID"] = warehouses[0].id   # 👈 or paste a warehouse ID you can use
+
+mlflow.set_experiment(
+    f"/Users/{user}/churn_workshop",
+    trace_location=UnityCatalog(catalog_name=CATALOG, schema_name=SCHEMA, table_prefix="churn_workshop"),
+)
 
 @mlflow.trace(span_type="TOOL")
 def get_churn_risk(customer_id: str) -> float:
@@ -101,7 +111,35 @@ retention_assistant(top)
 # MAGIC %md
 # MAGIC **What to point out**
 # MAGIC - The output cell shows a **trace**: the parent `retention_assistant` span with the `get_churn_risk` tool call nested inside, each with inputs, outputs, and timing.
+# MAGIC - The trace was written to **Unity Catalog**, in the location we set in Module 03. Writing needs nothing extra, but reading traces back (this viewer, the Experiments UI, `mlflow.search_traces`) runs SQL on a warehouse. That's what `MLFLOW_TRACING_SQL_WAREHOUSE_ID` is for, and MLflow starts the warehouse if it's stopped.
 # MAGIC - In a real agent, the spans would be LLM calls, retrievals, and tool calls. Tracing, evaluation, and monitoring for GenAI build on everything you learned today.
+# MAGIC
+# MAGIC Because traces are tables, the SQL you used in Module 02 works on them too:
+
+# COMMAND ----------
+
+import time
+trace_id = mlflow.get_last_active_trace_id().split("/")[-1]   # the trace we just created
+query = f"""
+  SELECT name, parent_span_id IS NULL AS is_root,
+         round((end_time_unix_nano - start_time_unix_nano) / 1e6, 2) AS duration_ms
+  FROM {CATALOG}.{SCHEMA}.churn_workshop_otel_spans
+  WHERE trace_id = '{trace_id}'
+  ORDER BY start_time_unix_nano"""
+
+for _ in range(12):                      # spans land a few seconds after the call
+    if spark.sql(query).count():
+        break
+    time.sleep(5)
+display(spark.sql(query))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC **What to point out**
+# MAGIC - Each row is one **span**. The root span (`retention_assistant`) has no parent, and the tool call points to it through `parent_span_id`.
+# MAGIC - Spans are written asynchronously, so they reach the table a few seconds after the call. The loop waits for the trace we just created, which `get_last_active_trace_id()` identifies.
+# MAGIC - Because they're in UC, traces get the same governance as any table: grants, lineage, and dashboards.
 # MAGIC
 # MAGIC ---
 # MAGIC

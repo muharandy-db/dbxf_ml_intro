@@ -38,7 +38,7 @@ Create a notebook `07_ship_it_with_governance`.
 ### Cell 0 — Libraries
 
 ```python
-%pip install -q "mlflow>=3.1" scikit-learn==1.6.1
+%pip install -q "mlflow[databricks]>=3.14" scikit-learn==1.6.1
 ```
 
 ```python

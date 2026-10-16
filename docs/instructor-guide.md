@@ -7,6 +7,7 @@
 - [ ] Confirm attendees can choose **serverless environment version 4+** (needed for Spark ML in Module 04)
 - [ ] Confirm **serverless notebooks** are enabled and that attendees can `%pip install` from PyPI (or from your mirror).
 - [ ] Do a full dry run as a non-admin user: run `notebooks/00` → `08` in order on serverless. This takes about 25 minutes, mostly waiting for the monitor refresh.
+- [ ] Confirm attendees have **CAN USE** on a SQL warehouse (serverless preferred). Module 10 reads traces from Unity Catalog through it.
 - [ ] *(Module 07 demo)* Pre-create one serving endpoint the day before, so you can show it without waiting about 10 minutes live.
 - [ ] *(Optional, Module 10 AutoML demo)* AutoML classification and regression don't run on serverless (only forecasting does). To demo AutoML on the churn data, start a classic cluster with **Databricks Runtime ML** in **dedicated (single user) access mode** ahead of time.
 - [ ] *(Module 09 demo)* Create `ml_workshop_staging` / `ml_workshop_prod` if you want to deploy those targets live.
@@ -50,6 +51,8 @@ Each module has one moment the room should not miss. Pause there.
 | `Py4JSecurityException: Constructor ... Imputer ... is not whitelisted` (Module 04) | Serverless environment version is below 4; set it in the notebook's **Environment** panel and re-run |
 | `Tag value ... is not an allowed value for tag policy key ...` (Module 07) | The workspace has a **governed tag policy** on that key; pick a different tag key or an allowed value |
 | `AttributeError: Can't get attribute '_RemainderColsList'` (or similar) when loading a model | scikit-learn version differs from the one that trained the model; keep the pinned `scikit-learn==1.6.1` in every notebook |
+| `A UC Trace Destination can only be linked to an Experiment that does not already contain any traces` (Module 03 Cell 1) | The `churn_workshop` experiment already has traces in the old storage, typically from an earlier dry run of Module 10. Rename or delete the experiment under **Experiments**, then re-run the cell |
+| `SQL warehouse ID is required for accessing traces in UC tables` (Module 10) | `MLFLOW_TRACING_SQL_WAREHOUSE_ID` isn't set, or the attendee can't see any warehouse; grant **CAN USE** on one, or paste its ID into the config cell |
 | `NameError` after `%pip install` | `restartPython()` clears variables; re-run the config cell |
 | `IndexError` / empty result in Module 05 Cell 5 or Module 07 Cell 2 | Module 04 Cell 5 wasn't run (no run tagged `candidate=true`) |
 | Module 07 Cell 3 can't find `hist_gbm_tuning` | Module 03 Cell 6 wasn't run; set `best` by hand: `{"learning_rate": 0.06, "max_depth": 3, "max_iter": 300, "l2_regularization": 0.5}` |

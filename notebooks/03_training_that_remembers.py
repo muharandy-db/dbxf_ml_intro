@@ -42,7 +42,7 @@
 
 # COMMAND ----------
 
-# MAGIC %pip install -q "mlflow>=3.1" scikit-learn==1.6.1 optuna
+# MAGIC %pip install -q "mlflow[databricks]>=3.14" scikit-learn==1.6.1 optuna
 
 # COMMAND ----------
 
@@ -61,6 +61,7 @@ dbutils.library.restartPython()
 # COMMAND ----------
 
 import re, mlflow
+from mlflow.entities.trace_location import UnityCatalog
 CATALOG = "ml_workshop"
 user = spark.sql("SELECT current_user()").first()[0]
 SCHEMA = re.sub(r"[^a-z0-9_]", "_", user.split("@")[0].lower())
@@ -68,15 +69,18 @@ spark.sql(f"USE CATALOG {CATALOG}")
 spark.sql(f"USE SCHEMA {SCHEMA}")
 
 mlflow.set_registry_uri("databricks-uc")                 # models will be registered in Unity Catalog
-mlflow.set_experiment(f"/Users/{user}/churn_workshop")    # one experiment for the whole day
+mlflow.set_experiment(
+    f"/Users/{user}/churn_workshop",                      # one experiment for the whole day
+    trace_location=UnityCatalog(catalog_name=CATALOG, schema_name=SCHEMA, table_prefix="churn_workshop"),
+)
 MODEL_NAME = f"{CATALOG}.{SCHEMA}.churn_model"
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC **What to point out**
-# MAGIC - `set_experiment` creates the experiment if it doesn't exist. Every module from here on logs into the **same** experiment, so the whole day's work sits in one place.
-# MAGIC - The first run prints two messages, and both are expected. *"Experiment ... does not exist. Creating a new experiment"* is `set_experiment` doing its job. The note about storing traces in Unity Catalog is about **MLflow Tracing** for GenAI apps (Module 10). Today we log runs and models, not traces, so you can ignore it.
+# MAGIC - `set_experiment` creates the experiment if it doesn't exist. Every module from here on logs into the **same** experiment, so the whole day's work sits in one place. The first run prints *"Experiment ... does not exist. Creating a new experiment"*, which is expected.
+# MAGIC - `trace_location` stores the experiment's **traces** in Unity Catalog tables in your schema (`churn_workshop_otel_spans` and friends), not in the experiment's built-in store. That means no 100,000-trace limit, UC permissions, and traces you can query with SQL. We only create traces in Module 10, but the location is fixed when the experiment is created, so we set it here. Later modules call `set_experiment` with just the name and MLflow finds the location on its own.
 # MAGIC - `databricks-uc` means registered models live in **Unity Catalog** next to the tables, with the same permissions model (Module 07).
 # MAGIC
 # MAGIC ### Cell 2 — Load the training snapshot

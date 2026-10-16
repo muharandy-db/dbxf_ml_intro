@@ -66,6 +66,7 @@ The model itself barely changes during the day. What changes is everything *arou
   ```
 - This repo pushed to a Git provider the workspace can reach (for Git folders)
 - *(Optional, Module 09)* `ml_workshop_staging` / `ml_workshop_prod` catalogs if you want to demo promotion
+- *(Module 10)* attendees need **CAN USE** on at least one SQL warehouse, which MLflow uses to read traces stored in Unity Catalog
 - *(Optional, Module 07)* permission to create Model Serving endpoints for the serving demo
 
 ---
